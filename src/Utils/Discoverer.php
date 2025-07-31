@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpMcp\Server\Utils;
 
+use Attribute;
 use PhpMcp\Schema\Prompt;
 use PhpMcp\Schema\PromptArgument;
 use PhpMcp\Schema\Resource;
@@ -27,6 +28,8 @@ use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 use Throwable;
 
+use function PHPUnit\Framework\returnArgument;
+
 class Discoverer
 {
     private DocBlockParser $docBlockParser;
@@ -41,6 +44,26 @@ class Discoverer
     ) {
         $this->docBlockParser = $docBlockParser ?? new DocBlockParser($this->logger);
         $this->schemaGenerator = $schemaGenerator ?? new SchemaGenerator($this->docBlockParser);
+    }
+
+    protected function toolAttribute(): Attribute
+    {
+        return McpTool::class;
+    }
+
+    protected function resourceAttribute(): Attribute
+    {
+        return McpResource::class;
+    }
+
+    protected function promptAttribute(): Attribute
+    {
+        return McpPrompt::class;
+    }
+
+    protected function resourceTemplateAttribute(): Attribute
+    {
+        return McpResourceTemplate::class;
     }
 
     /**
@@ -131,7 +154,7 @@ class Discoverer
             if ($reflectionClass->hasMethod('__invoke')) {
                 $invokeMethod = $reflectionClass->getMethod('__invoke');
                 if ($invokeMethod->isPublic() && ! $invokeMethod->isStatic()) {
-                    $attributeTypes = [McpTool::class, McpResource::class, McpPrompt::class, McpResourceTemplate::class];
+                    $attributeTypes =  [$this->toolAttribute(), $this->resourceAttribute(), $this->promptAttribute(), $this->resourceTemplateAttribute()];
                     foreach ($attributeTypes as $attributeType) {
                         $classAttribute = $reflectionClass->getAttributes($attributeType, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
                         if ($classAttribute) {
@@ -151,7 +174,7 @@ class Discoverer
                     ) {
                         continue;
                     }
-                    $attributeTypes = [McpTool::class, McpResource::class, McpPrompt::class, McpResourceTemplate::class];
+                    $attributeTypes = [$this->toolAttribute(), $this->resourceAttribute(), $this->promptAttribute(), $this->resourceTemplateAttribute()];
                     foreach ($attributeTypes as $attributeType) {
                         $methodAttribute = $method->getAttributes($attributeType, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
                         if ($methodAttribute) {
@@ -192,7 +215,7 @@ class Discoverer
             $instance = $attribute->newInstance();
 
             switch ($attributeClassName) {
-                case McpTool::class:
+                case $this->toolAttribute():
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ($methodName === '__invoke' ? $classShortName : $methodName);
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
@@ -202,7 +225,7 @@ class Discoverer
                     $discoveredCount['tools']++;
                     break;
 
-                case McpResource::class:
+                case $this->resourceAttribute():
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ($methodName === '__invoke' ? $classShortName : $methodName);
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
@@ -214,7 +237,7 @@ class Discoverer
                     $discoveredCount['resources']++;
                     break;
 
-                case McpPrompt::class:
+                case $this->promptAttribute():
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ($methodName === '__invoke' ? $classShortName : $methodName);
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
@@ -234,7 +257,7 @@ class Discoverer
                     $discoveredCount['prompts']++;
                     break;
 
-                case McpResourceTemplate::class:
+                case $this->resourceTemplateAttribute():
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ($methodName === '__invoke' ? $classShortName : $methodName);
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
